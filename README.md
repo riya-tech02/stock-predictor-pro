@@ -20,7 +20,7 @@ A **production-grade, enterprise-level** stock market prediction system using **
 
 ---
 
-## 📐 System Architecture
+##  System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -61,7 +61,7 @@ A **production-grade, enterprise-level** stock market prediction system using **
 
 ---
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 ### Machine Learning
 - **Framework**: TensorFlow 2.13, Keras
@@ -98,7 +98,7 @@ A **production-grade, enterprise-level** stock market prediction system using **
 
 ---
 
-## 📊 Model Performance
+##  Model Performance
 
 ### Classification Metrics
 | Metric | Training | Validation | Test |
@@ -210,7 +210,7 @@ curl -X POST http://localhost:8000/api/v1/explain \
 
 ---
 
-## ☁️ AWS Deployment
+##  AWS Deployment
 
 ### Using Terraform
 ```bash
@@ -259,7 +259,7 @@ aws ecs update-service \
 
 ---
 
-## 📈 Monitoring & Observability
+##  Monitoring & Observability
 
 ### Grafana Dashboards
 Access at `http://localhost:3000` (admin/admin)
@@ -287,7 +287,7 @@ aws logs tail /ecs/stock-predictor --follow
 
 ---
 
-## 🔬 Model Explainability
+##  Model Explainability
 
 ### SHAP Analysis
 ```python
@@ -310,7 +310,7 @@ The model's attention mechanism highlights which time steps are most important f
 
 ---
 
-## 🧪 Testing
+##  Testing
 
 ### Unit Tests
 ```bash
@@ -336,7 +336,7 @@ locust -f tests/load/locustfile.py --headless -u 1000 -r 100 -t 5m
 
 ---
 
-## 📚 API Documentation
+## � API Documentation
 
 ### Interactive Docs
 - Swagger UI: `http://localhost:8000/api/docs`
@@ -481,22 +481,6 @@ See [INTERVIEW_NOTES.md](INTERVIEW_NOTES.md) for detailed technical talking poin
   improving model accuracy by 12%
 ```
 
----
-
-##  Contributing
-
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
-
----
-
-
----
 
 ##  Acknowledgments
 
@@ -506,14 +490,6 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for gu
 - AWS for cloud infrastructure
 - Alpha Vantage & Yahoo Finance for market data
 
----
 
-##  Contact
 
-**Your Name** - [your.email@example.com](mailto:your.email@example.com)
-
-Project Link: [https://github.com/yourusername/stock-predictor-pro](https://github.com/yourusername/stock-predictor-pro)
-
----
-
- **Star this repo if you find it useful!** 
+ 
