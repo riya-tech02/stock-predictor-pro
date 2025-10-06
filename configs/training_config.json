@@ -1,0 +1,13 @@
+{
+  "sequence_length": 60,
+  "batch_size": 32,
+  "epochs": 100,
+  "validation_split": 0.2,
+  "lstm_units": [128, 64],
+  "attention_units": 128,
+  "dropout_rate": 0.3,
+  "learning_rate": 0.001,
+  "target_threshold": 0.001,
+  "early_stopping_patience": 15,
+  "reduce_lr_patience": 7
+}
