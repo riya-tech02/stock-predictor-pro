@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: stock-predictor-api
+    env: docker
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      - key: ENV
+        value: production
+      - key: PORT
+        value: 8000

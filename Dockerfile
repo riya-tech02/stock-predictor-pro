@@ -1,80 +1,40 @@
-# Multi-stage build for optimized production image
+# Render-Compatible Dockerfile for Stock Predictor
 
-# ==================== Stage 1: Builder ====================
-FROM python:3.9-slim AS builder
-
-# Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    gcc \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create virtual environment
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-# Copy requirements and install dependencies
-COPY requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
-
-# ==================== Stage 2: Production ====================
 FROM python:3.9-slim
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/opt/venv/bin:$PATH" \
-    MODEL_PATH="/app/models" \
-    ARTIFACTS_PATH="/app/artifacts"
-
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgomp1 \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create non-root user for security
-RUN useradd -m -u 1000 appuser && \
-    mkdir -p /app /app/models /app/artifacts /app/logs && \
-    chown -R appuser:appuser /app
-
-# Copy virtual environment from builder
-COPY --from=builder /opt/venv /opt/venv
+    PIP_NO_CACHE_DIR=1 \
+    PORT=8000
 
 # Set working directory
 WORKDIR /app
 
+# Install system dependencies (minimal for Render)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
 # Copy application code
-COPY --chown=appuser:appuser src/ ./src/
-COPY --chown=appuser:appuser api/ ./api/
+COPY . .
 
-COPY --chown=appuser:appuser artifacts/ ./artifacts/
+# Create necessary directories
+RUN mkdir -p models artifacts logs
 
-# Switch to non-root user
-USER appuser
-
-# Expose port
+# Expose port (Render will override with $PORT)
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
 
-# Run application with Gunicorn
-CMD ["gunicorn", "api.main:app", \
-     "--workers", "4", \
-     "--worker-class", "uvicorn.workers.UvicornWorker", \
-     "--bind", "0.0.0.0:8000", \
-     "--timeout", "120", \
-     "--keep-alive", "5", \
-     "--log-level", "info", \
-     "--access-logfile", "-", \
-     "--error-logfile", "-"]
+# Run with uvicorn (simpler than gunicorn for Render free tier)
+CMD uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}

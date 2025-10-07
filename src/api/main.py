@@ -2,6 +2,12 @@
 Production FastAPI Application for Stock Price Prediction
 Includes prediction, explanation, health checks, and monitoring endpoints
 """
+import os
+
+# Render-specific: Check if models exist
+MODEL_PATH = os.getenv("MODEL_PATH", "models/production_model.h5")
+SCALER_PATH = os.getenv("SCALER_PATH", "artifacts/scaler.pkl")
+FEATURE_PATH = os.getenv("FEATURE_PATH", "artifacts/feature_names.json")
 
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -156,46 +162,45 @@ model_state = ModelState()
 
 @app.on_event("startup")
 async def load_model():
-    """Load model, scaler, and dependencies on startup"""
+    """Load model on startup"""
     try:
-        logger.info("Loading production model...")
+        print("Loading production model...")
+        
+        # Check if files exist
+        if not os.path.exists(MODEL_PATH):
+            print(f"⚠️ Model not found at {MODEL_PATH}")
+            print("API will start but predictions will fail until model is uploaded")
+            model_state.loaded = False
+            return
         
         # Load model
-        model_path = "models/production_model.h5"
         model_state.model = keras.models.load_model(
-            model_path,
+            MODEL_PATH,
             custom_objects={'AttentionLayer': AttentionLayer}
         )
-        logger.info(f"✓ Model loaded from {model_path}")
+        print("✓ Model loaded")
         
         # Load scaler
-        scaler_path = "artifacts/scaler.pkl"
-        model_state.scaler = joblib.load(scaler_path)
-        logger.info(f"✓ Scaler loaded from {scaler_path}")
+        if os.path.exists(SCALER_PATH):
+            model_state.scaler = joblib.load(SCALER_PATH)
+            print("✓ Scaler loaded")
         
         # Load feature names
-        import json
-        with open("artifacts/feature_names.json", 'r') as f:
-            model_state.feature_names = json.load(f)
-        logger.info(f"✓ Feature names loaded ({len(model_state.feature_names)} features)")
-        
-        # Initialize explainer (lazy loading for background data)
-        # Background data would be loaded from a sample dataset
-        logger.info("✓ Explainer will be initialized on first explanation request")
+        if os.path.exists(FEATURE_PATH):
+            with open(FEATURE_PATH, 'r') as f:
+                model_state.feature_names = json.load(f)
+            print(f"✓ {len(model_state.feature_names)} features loaded")
+            model_state.n_features = len(model_state.feature_names)
         
         model_state.loaded = True
-        logger.info("🚀 API ready for predictions!")
+        print("🚀 API ready for predictions!")
         
     except Exception as e:
-        logger.error(f"Failed to load model: {str(e)}")
-        raise
+        print(f"⚠️ Failed to load model: {str(e)}")
+        print("API starting in degraded mode - health checks will work")
+        model_state.loaded = False
+        
 
-
-@app.on_event("shutdown")
-async def shutdown():
-    """Cleanup on shutdown"""
-    logger.info("Shutting down API...")
-    model_state.loaded = False
 
 
 # ==================== Dependency Functions ====================
