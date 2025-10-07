@@ -2,7 +2,14 @@
 Production FastAPI Application for Stock Price Prediction
 Includes prediction, explanation, health checks, and monitoring endpoints
 """
+import sys
 import os
+
+# Add parent directory to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from fastapi import FastAPI, HTTPException
+# ... rest of imports
 
 # Render-specific: Check if models exist
 MODEL_PATH = os.getenv("MODEL_PATH", "models/production_model.h5")
@@ -199,7 +206,7 @@ async def load_model():
         print(f"⚠️ Failed to load model: {str(e)}")
         print("API starting in degraded mode - health checks will work")
         model_state.loaded = False
-        
+
 
 
 
@@ -499,3 +506,10 @@ if __name__ == "__main__":
         log_level="info",
         access_log=True
     )
+    from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+def read_root():
+    return {"message": "Hello from Render"}
