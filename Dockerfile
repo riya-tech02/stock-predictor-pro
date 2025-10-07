@@ -37,4 +37,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:${PORT}/health || exit 1
 
 # Run with uvicorn (simpler than gunicorn for Render free tier)
-CMD uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD uvicorn api.main:app --host 0.0.0.0 --port ${port:-8000}
