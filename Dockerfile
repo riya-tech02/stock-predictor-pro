@@ -55,7 +55,7 @@ WORKDIR /app
 # Copy application code
 COPY --chown=appuser:appuser src/ ./src/
 COPY --chown=appuser:appuser api/ ./api/
-COPY --chown=appuser:appuser models/ ./models/
+
 COPY --chown=appuser:appuser artifacts/ ./artifacts/
 
 # Switch to non-root user
