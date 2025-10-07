@@ -1,40 +1,24 @@
-# Render-Compatible Dockerfile for Stock Predictor
-
 FROM python:3.9-slim
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PORT=8000
-
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies (minimal for Render)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Install system deps
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements.
-COPY requirements-render.txt requirements.txt
+# Copy and install requirements ONE BY ONE
+COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# Install in specific order to avoid conflicts
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+RUN pip install --no-cache-dir numpy==1.23.5
+RUN pip install --no-cache-dir tensorflow-cpu==2.13.0
+RUN pip install --no-cache-dir fastapi==0.103.1 uvicorn==0.23.2 pydantic==2.3.0
+RUN pip install --no-cache-dir pandas==2.0.3 scikit-learn==1.3.0 joblib==1.3.2
 
-# Copy application code
 COPY . .
 
-# Create necessary directories
 RUN mkdir -p models artifacts logs
 
-# Expose port (Render will override with $PORT)
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/health || exit 1
-
-# Run with uvicorn (simpler than gunicorn for Render free tier)
-CMD uvicorn api.main:app --host 0.0.0.0 --port ${port:-8000}
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
