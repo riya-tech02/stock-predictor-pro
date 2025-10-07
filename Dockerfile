@@ -1,7 +1,7 @@
 # Multi-stage build for optimized production image
 
 # ==================== Stage 1: Builder ====================
-FROM python:3.9-slim as builder
+FROM python:3.9-slim AS builder
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
