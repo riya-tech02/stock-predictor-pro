@@ -81,7 +81,8 @@ async def startup():
         MODEL_PATH = "models/production_model.h5"
         
         if os.path.exists(MODEL_PATH):
-            from tensorflow.keras import layers
+            import tensorflow as tf
+            layers = tf.keras.layers
             
             class AttentionLayerKeras(layers.Layer):
                 def __init__(self, units=128, **kwargs):
