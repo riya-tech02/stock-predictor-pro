@@ -2,6 +2,9 @@
 Complete Stock Predictor API with Real ML Model
 Production-Ready for Render Deployment
 """
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi import Request
 
 import sys
 import os
@@ -19,6 +22,16 @@ app = FastAPI(
     description="ML-powered stock price prediction with Bi-LSTM + Attention",
     version="2.0.0"
 )
+
+# Mount static files and templates
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+# Serve frontend
+@app.get("/api", include_in_schema=False)
+async def api_serve_frontend(request: Request):
+    """Serve the main website"""
+    return templates.TemplateResponse("index.html", {"request": request})
 
 # CORS
 app.add_middleware(
