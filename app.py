@@ -1,14 +1,19 @@
 """
 Stock Predictor with Real Data + Rate Limit Protection
-Production Ready Version - FIXED
+Production Ready Version - FINAL FIX
+Works with Pydantic v1 (no conflicts)
 """
 
 import sys
 import os
+
+# Suppress TensorFlow warnings
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
 import numpy as np
 from datetime import datetime, timedelta
@@ -23,7 +28,7 @@ logger = logging.getLogger(__name__)
 # Suppress yfinance warnings
 logging.getLogger('yfinance').setLevel(logging.CRITICAL)
 
-app = FastAPI(title="Stock Market Predictor", version="3.0.1")
+app = FastAPI(title="Stock Market Predictor", version="3.1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,16 +38,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ==================== Models ====================
+# ==================== Models (Pydantic v1 Compatible) ====================
 
 class StockRequest(BaseModel):
     ticker: str
     use_real_data: bool = True
 
 class PredictionResponse(BaseModel):
-    # Fix the pydantic warning by allowing protected namespaces
-    model_config = ConfigDict(protected_namespaces=())
-    
     predicted_class: int
     predicted_class_name: str
     confidence: float
