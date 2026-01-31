@@ -1,6 +1,6 @@
 """
 Stock Predictor with Real Data + Rate Limit Protection
-Production Ready Version
+Production Ready Version - FIXED
 """
 
 import sys
@@ -8,14 +8,22 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Dict, Optional
 import numpy as np
 from datetime import datetime, timedelta
 import json
 import time
+import logging
 
-app = FastAPI(title="Stock Market Predictor", version="3.0.0")
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Suppress yfinance warnings
+logging.getLogger('yfinance').setLevel(logging.CRITICAL)
+
+app = FastAPI(title="Stock Market Predictor", version="3.0.1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,6 +40,9 @@ class StockRequest(BaseModel):
     use_real_data: bool = True
 
 class PredictionResponse(BaseModel):
+    # Fix the pydantic warning by allowing protected namespaces
+    model_config = ConfigDict(protected_namespaces=())
+    
     predicted_class: int
     predicted_class_name: str
     confidence: float
@@ -59,9 +70,9 @@ CACHE_DURATION = 300  # 5 minutes
 
 @app.on_event("startup")
 async def startup():
-    print("="*60)
-    print("🚀 Stock Predictor Starting...")
-    print("="*60)
+    logger.info("="*60)
+    logger.info("🚀 Stock Predictor Starting...")
+    logger.info("="*60)
     
     try:
         import tensorflow as tf
@@ -96,39 +107,58 @@ async def startup():
                 custom_objects={'AttentionLayer': AttentionLayerKeras}
             )
             model_state.loaded = True
-            print("✅ Model loaded!")
+            logger.info("✅ Model loaded!")
         else:
-            print("⚠️  Demo mode")
+            logger.warning("⚠️  Demo mode - model file not found")
             
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
+        logger.error(f"❌ Error loading model: {str(e)}")
 
-# ==================== Stock Data Fetcher ====================
+# ==================== Stock Data Fetcher (FIXED) ====================
 
 def fetch_real_stock_data(ticker: str):
-    """Fetch real stock data with caching and rate limit protection"""
+    """Fetch real stock data with improved error handling and retry logic"""
     
     # Check cache first
     cache_key = ticker
     if cache_key in stock_cache:
         cached_data = stock_cache[cache_key]
         if time.time() - cached_data['timestamp'] < CACHE_DURATION:
-            print(f"✓ Using cached data for {ticker}")
+            logger.info(f"✓ Using cached data for {ticker}")
             return cached_data['sequence'], cached_data['price'], cached_data['change'], None
     
     try:
         import yfinance as yf
         import pandas as pd
         
-        print(f"Fetching fresh data for {ticker}...")
+        logger.info(f"Fetching fresh data for {ticker}...")
         
-        # Add small delay to avoid rate limits
+        # Add delay to avoid rate limits
         time.sleep(0.5)
         
-        # Use simple download method
-        hist = yf.download(ticker, period="3mo", progress=False, show_errors=False)
+        # FIXED: Use Ticker object instead of download for better reliability
+        stock = yf.Ticker(ticker)
         
-        if len(hist) == 0:
+        # Try to get historical data
+        try:
+            # First attempt: 3 months
+            hist = stock.history(period="3mo")
+            
+            # If empty, try 1 month
+            if hist.empty:
+                logger.warning(f"No 3mo data for {ticker}, trying 1mo...")
+                hist = stock.history(period="1mo")
+            
+            # If still empty, try different approach
+            if hist.empty:
+                logger.warning(f"No 1mo data for {ticker}, trying download method...")
+                hist = yf.download(ticker, period="3mo", progress=False, timeout=10)
+            
+        except Exception as e:
+            logger.error(f"Error fetching history: {e}")
+            hist = pd.DataFrame()
+        
+        if len(hist) == 0 or hist.empty:
             raise ValueError(f"No data available for {ticker}")
         
         # Get current price
@@ -136,17 +166,21 @@ def fetch_real_stock_data(ticker: str):
         prev_close = float(hist['Close'].iloc[-2]) if len(hist) > 1 else current_price
         change_percent = ((current_price - prev_close) / prev_close) * 100
         
-        # Calculate indicators
+        # Calculate indicators with better error handling
         hist['Returns'] = hist['Close'].pct_change()
-        hist['SMA_20'] = hist['Close'].rolling(20).mean()
-        hist['Vol_Ratio'] = hist['Volume'] / hist['Volume'].rolling(20).mean()
+        hist['SMA_20'] = hist['Close'].rolling(20, min_periods=1).mean()
+        hist['Vol_Ratio'] = hist['Volume'] / hist['Volume'].rolling(20, min_periods=1).mean()
         
-        # RSI
-        delta = hist['Close'].diff()
-        gain = delta.where(delta > 0, 0).rolling(14).mean()
-        loss = -delta.where(delta < 0, 0).rolling(14).mean()
-        rs = gain / loss
-        hist['RSI'] = 100 - (100 / (1 + rs))
+        # RSI with better error handling
+        try:
+            delta = hist['Close'].diff()
+            gain = delta.where(delta > 0, 0).rolling(14, min_periods=1).mean()
+            loss = -delta.where(delta < 0, 0).rolling(14, min_periods=1).mean()
+            rs = gain / loss
+            hist['RSI'] = 100 - (100 / (1 + rs))
+        except Exception as e:
+            logger.warning(f"RSI calculation error: {e}")
+            hist['RSI'] = 50.0  # Default neutral value
         
         # Build sequence
         sequence = []
@@ -175,19 +209,20 @@ def fetch_real_stock_data(ticker: str):
             'timestamp': time.time()
         }
         
-        print(f"✓ {ticker}: ${current_price:.2f} ({change_percent:+.2f}%)")
+        logger.info(f"✓ {ticker}: ${current_price:.2f} ({change_percent:+.2f}%)")
         
         return sequence, current_price, change_percent, None
         
     except Exception as e:
         error_msg = str(e)
-        print(f"❌ Error: {error_msg}")
+        logger.error(f"❌ Error fetching {ticker}: {error_msg}")
         
         # Use realistic demo data based on ticker
         demo_prices = {
             'AAPL': 178.50, 'TSLA': 245.30, 'GOOGL': 142.80,
             'MSFT': 415.20, 'AMZN': 178.90, 'META': 485.60,
-            'NVDA': 875.40, 'SPY': 512.30
+            'NVDA': 875.40, 'SPY': 512.30, 'NFLX': 625.45,
+            'AMD': 188.75, 'INTC': 45.23, 'DIS': 112.80
         }
         
         demo_price = demo_prices.get(ticker, 150.00)
@@ -198,9 +233,9 @@ def fetch_real_stock_data(ticker: str):
         noise = np.random.randn(60, 33) * 0.05
         sequence = (base_trend[:, np.newaxis] + noise).tolist()
         
-        return sequence, demo_price, demo_change, "Rate limited - using estimated data"
+        return sequence, demo_price, demo_change, f"Using estimated data - {error_msg[:50]}"
 
-# ==================== HTML (Same as before, but updated message) ====================
+# ==================== HTML (Same as before) ====================
 
 HTML_CONTENT = """<!DOCTYPE html>
 <html lang="en">
